@@ -1,0 +1,48 @@
+model:
+  hidden_size: 768
+  num_attention_heads: 12
+  attention_dropout: 0.1
+  window_size: 256
+  global_tokens: 32
+  sparsity_factor: 0.2
+  lsh_num_buckets: 32
+  lsh_hash_size: 16
+
+chunking:
+  min_chunk_size: 512
+  max_chunk_size: 2048
+  chunk_growth_factor: 1.5
+  overlap_size: 128
+
+memory:
+  max_memory_size: 10000
+  cache_size: 10000
+  prefetch_window: 512
+  prediction_threshold: 0.7
+
+training:
+  batch_size: 32
+  learning_rate: 1e-4
+  warmup_steps: 1000
+  max_steps: 100000
+  gradient_accumulation: 4
+  weight_decay: 0.01
+  max_grad_norm: 1.0
+
+serving:
+  max_batch_size: 64
+  max_sequence_length: 16384
+  timeout_ms: 100
+  num_worker_threads: 4
+  enable_cuda_graphs: true
+  cuda_graph_batch_sizes: [1, 2, 4, 8, 16, 32, 64]
+  max_waiting_tokens: 1024
+  prefill_chunk_size: 512
+
+optimization:
+  fp16_inference: true
+  quantization: false
+  num_cuda_streams: 4
+  kernel_fusion: true
+  use_flash_attention: true
+  memory_efficient_attention: true

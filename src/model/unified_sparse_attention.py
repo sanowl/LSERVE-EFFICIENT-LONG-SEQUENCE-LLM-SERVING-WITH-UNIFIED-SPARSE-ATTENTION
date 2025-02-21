@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 import math
 from typing import Optional, Tuple
+from lserve_cpp import attention_kernels
 
 class UnifiedSparseAttention(nn.Module):
     def __init__(self, 
@@ -141,34 +142,12 @@ class UnifiedSparseAttention(nn.Module):
         hidden_states: torch.Tensor,
         attention_mask: Optional[torch.Tensor] = None
     ) -> torch.Tensor:
-        # Split into global and local tokens
-        global_tokens = hidden_states[:, :self.global_tokens, :]
-        local_tokens = hidden_states[:, self.global_tokens:, :]
-        
-        # Process global tokens
-        global_query = self.transpose_for_scores(self.global_query(global_tokens))
-        global_key = self.transpose_for_scores(self.global_key(global_tokens))
-        global_value = self.transpose_for_scores(self.global_value(global_tokens))
-        
-        # Process local tokens
-        local_query = self.transpose_for_scores(self.query(local_tokens))
-        local_key = self.transpose_for_scores(self.key(local_tokens))
-        local_value = self.transpose_for_scores(self.value(local_tokens))
-        
-        # Combine global and local representations
-        query_layer = torch.cat([global_query, local_query], dim=2)
-        key_layer = torch.cat([global_key, local_key], dim=2)
-        value_layer = torch.cat([global_value, local_value], dim=2)
-        
-        # Compute sparse attention
-        context_layer = self.compute_sparse_attention(
-            query_layer, key_layer, value_layer,
-            attention_mask, hidden_states
+        # Use C++ kernel for attention computation
+        output = attention_kernels.compute_sparse_attention(
+            query=self.query(hidden_states),
+            key=self.key(hidden_states),
+            value=self.value(hidden_states),
+            mask=attention_mask,
+            dropout_prob=self.dropout.p
         )
-        
-        # Final projection
-        context_layer = context_layer.permute(0, 2, 1, 3).contiguous()
-        new_context_layer_shape = context_layer.size()[:-2] + (self.all_head_size,)
-        context_layer = context_layer.view(*new_context_layer_shape)
-        
-        return context_layer
+        return output
